@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react'
 import { Upload, FileText, Sparkles, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 
-export default function UploadPanel({ onGenerate, isLoading, hasData, onEdit, portfolioData }) {
+export default function UploadPanel({ onGenerate, isLoading, hasData, onEdit, portfolioData, usesLeft = 5, isBlocked = false, isLoggedIn = false }) {
   const [mode, setMode] = useState('upload')
   const [text, setText] = useState('')
   const [fileName, setFileName] = useState(null)
@@ -59,7 +59,7 @@ export default function UploadPanel({ onGenerate, isLoading, hasData, onEdit, po
           </span>
         </div>
         <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginLeft: '40px' }}>
-          AI-powered · Built by Adamya
+          AI-powered · Rose Studio
         </p>
       </div>
 
@@ -174,23 +174,56 @@ export default function UploadPanel({ onGenerate, isLoading, hasData, onEdit, po
           ))}
         </div>
 
+        {/* Usage counter */}
+        {isLoggedIn && (
+          <div style={{
+            marginBottom: '10px', padding: '8px 12px',
+            background: isBlocked ? 'rgba(239,68,68,0.08)' : 'rgba(251,113,133,0.06)',
+            border: `1px solid ${isBlocked ? 'rgba(239,68,68,0.25)' : 'rgba(251,113,133,0.14)'}`,
+            borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+          }}>
+            <span style={{ fontSize: '0.74rem', color: isBlocked ? '#ef4444' : '#7a4a56' }}>
+              {isBlocked ? '🚫 Daily limit reached' : `✦ Daily generations`}
+            </span>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              {[1,2,3,4,5].map(i => (
+                <div key={i} style={{
+                  width: '8px', height: '8px', borderRadius: '50%',
+                  background: i <= (5 - usesLeft)
+                    ? (isBlocked ? '#ef4444' : '#7a1f35')
+                    : 'rgba(251,113,133,0.15)'
+                }} />
+              ))}
+            </div>
+            <span style={{ fontSize: '0.74rem', color: isBlocked ? '#ef4444' : '#fb7185', fontWeight: '600' }}>
+              {usesLeft}/5 left
+            </span>
+          </div>
+        )}
+
         {/* Generate button */}
         <button
-          onClick={handleGenerate} disabled={isLoading}
-          className={!isLoading ? 'glow-btn' : ''}
+          onClick={handleGenerate} disabled={isLoading || isBlocked}
+          className={!isLoading && !isBlocked ? 'glow-btn' : ''}
           style={{
             width: '100%', padding: '12px',
-            background: isLoading
+            background: isBlocked
+              ? 'rgba(239,68,68,0.15)'
+              : isLoading
               ? 'rgba(122,31,53,0.4)'
               : 'linear-gradient(135deg, #7a1f35 0%, #fb7185 100%)',
-            border: 'none', borderRadius: '9px', color: 'white',
-            fontWeight: '700', fontSize: '0.88rem', cursor: isLoading ? 'not-allowed' : 'pointer',
+            border: isBlocked ? '1px solid rgba(239,68,68,0.25)' : 'none',
+            borderRadius: '9px', color: isBlocked ? '#ef4444' : 'white',
+            fontWeight: '700', fontSize: '0.88rem',
+            cursor: (isLoading || isBlocked) ? 'not-allowed' : 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
             fontFamily: 'Syne, sans-serif', letterSpacing: '0.01em',
-            transition: 'opacity 0.2s'
+            transition: 'opacity 0.2s', opacity: isBlocked ? 0.8 : 1
           }}
         >
-          {isLoading
+          {isBlocked
+            ? '🚫 Limit reached — try tomorrow'
+            : isLoading
             ? <><Loader2 size={15} className="animate-spin" /> Generating...</>
             : <><Sparkles size={15} /> Generate Portfolio</>}
         </button>
@@ -238,8 +271,19 @@ export default function UploadPanel({ onGenerate, isLoading, hasData, onEdit, po
         )}
 
         {/* Note */}
+        {!isLoggedIn && (
+          <div style={{
+            marginTop: '14px', padding: '10px 12px',
+            background: 'rgba(251,113,133,0.05)',
+            border: '1px solid rgba(251,113,133,0.1)', borderRadius: '8px'
+          }}>
+            <p style={{ fontSize: '0.72rem', color: '#7a4a56', lineHeight: '1.5' }}>
+              🔒 <span style={{ color: '#fb7185', fontWeight: '600' }}>Sign up free</span> to generate your portfolio — 5 uses/day included.
+            </p>
+          </div>
+        )}
         <div style={{
-          marginTop: '14px', marginBottom: '22px', padding: '10px 12px',
+          marginTop: '10px', marginBottom: '22px', padding: '10px 12px',
           background: 'var(--accent-glow)', border: '1px solid var(--border)',
           borderRadius: '8px'
         }}>
