@@ -5,12 +5,24 @@ import PreviewPanel from './components/PreviewPanel'
 import EditModal from './components/EditModal'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
-import { useRateLimit } from './hooks/useRateLimit'
 import { MOCK_DATA } from './mockData'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
-function Navbar({ user, onLogout }) {
+// ── HELPERS ──────────────────────────────────────────────────
+function getStoredUser() {
+  try { return JSON.parse(localStorage.getItem('r2p_user')) } catch { return null }
+}
+function getStoredToken() {
+  return localStorage.getItem('r2p_token') || null
+}
+function getStoredUsesLeft() {
+  const v = localStorage.getItem('r2p_uses_left')
+  return v !== null ? parseInt(v) : 5
+}
+
+// ── NAVBAR ───────────────────────────────────────────────────
+function Navbar({ user, usesLeft, onLogout }) {
   return (
     <div style={{
       height: '48px', flexShrink: 0,
@@ -35,7 +47,18 @@ function Navbar({ user, onLogout }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         {user ? (
           <>
-            {/* Avatar + name */}
+            {/* Uses left pill */}
+            <div style={{
+              padding: '4px 10px',
+              background: usesLeft === 0 ? 'rgba(239,68,68,0.1)' : 'rgba(251,113,133,0.07)',
+              border: `1px solid ${usesLeft === 0 ? 'rgba(239,68,68,0.25)' : 'rgba(251,113,133,0.15)'}`,
+              borderRadius: '20px', fontSize: '0.72rem',
+              color: usesLeft === 0 ? '#ef4444' : '#c9a0ad'
+            }}>
+              {usesLeft === 0 ? '🚫 Limit reached' : `✦ ${usesLeft}/5 left today`}
+            </div>
+
+            {/* Avatar */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: '7px',
               padding: '4px 12px 4px 6px',
@@ -51,8 +74,11 @@ function Navbar({ user, onLogout }) {
               }}>
                 {user.name?.[0]?.toUpperCase()}
               </div>
-              <span style={{ fontSize: '0.78rem', color: '#ffb3c0', fontWeight: '500' }}>{user.name}</span>
+              <span style={{ fontSize: '0.78rem', color: '#ffb3c0', fontWeight: '500' }}>
+                {user.name}
+              </span>
             </div>
+
             <button onClick={onLogout} style={{
               padding: '5px 12px', borderRadius: '7px',
               border: '1px solid rgba(251,113,133,0.12)',
@@ -66,8 +92,7 @@ function Navbar({ user, onLogout }) {
               padding: '5px 14px', borderRadius: '7px',
               border: '1px solid rgba(251,113,133,0.18)',
               background: 'transparent', color: '#c9a0ad',
-              fontSize: '0.78rem', fontWeight: '500', textDecoration: 'none',
-              transition: 'all 0.15s'
+              fontSize: '0.78rem', fontWeight: '500', textDecoration: 'none'
             }}>Log in</Link>
             <Link to="/signup" style={{
               padding: '5px 14px', borderRadius: '7px', border: 'none',
@@ -82,18 +107,23 @@ function Navbar({ user, onLogout }) {
   )
 }
 
-function MainApp({ user }) {
+// ── MAIN APP ─────────────────────────────────────────────────
+function MainApp({ user, token, usesLeft, setUsesLeft }) {
   const [portfolioData, setPortfolioData] = useState(null)
   const [template, setTemplate] = useState('modern')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [showEdit, setShowEdit] = useState(false)
-  const { usesLeft, isBlocked, consume } = useRateLimit()
   const navigate = useNavigate()
 
+  const isBlocked = usesLeft <= 0
+
   const handleGenerate = async ({ mode, file, text, template: chosenTemplate }) => {
-    // If not logged in → send to signup
-    if (!user) return navigate('/signup')
+    // Not logged in → redirect to signup
+    if (!user || !token) {
+      navigate('/signup')
+      return
+    }
 
     // Rate limit check
     if (isBlocked) {
@@ -105,31 +135,55 @@ function MainApp({ user }) {
     setError(null)
     setLoading(true)
 
-    // Consume one use
-    consume()
-
     try {
-      let extractedData
+      let res
+
       if (mode === 'upload' && file) {
         const formData = new FormData()
         formData.append('resume', file)
-        const res = await fetch(`${API_URL}/api/parse-resume`, { method: 'POST', body: formData })
-        if (!res.ok) throw new Error(`Server error: ${res.status}`)
-        extractedData = await res.json()
-      } else if (mode === 'paste' && text?.trim()) {
-        const res = await fetch(`${API_URL}/api/parse-text`, {
+        res = await fetch(`${API_URL}/api/parse-resume`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData
         })
-        if (!res.ok) throw new Error(`Server error: ${res.status}`)
-        extractedData = await res.json()
+      } else if (mode === 'paste' && text?.trim()) {
+        res = await fetch(`${API_URL}/api/parse-text`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ text })
+        })
       } else {
         throw new Error('No resume content provided')
       }
-      setPortfolioData(extractedData)
+
+      const data = await res.json()
+
+      if (res.status === 429) {
+        // Rate limit hit on server side
+        setError(data.error)
+        setUsesLeft(0)
+        localStorage.setItem('r2p_uses_left', '0')
+        return
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Server error')
+      }
+
+      // Update uses left from server response
+      if (data.usesLeft !== undefined) {
+        setUsesLeft(data.usesLeft)
+        localStorage.setItem('r2p_uses_left', String(data.usesLeft))
+      }
+
+      setPortfolioData(data)
+
     } catch (err) {
-      setError('Backend offline — showing demo portfolio.')
+      console.warn('API failed, using mock data:', err.message)
+      setError('Backend error — showing demo portfolio.')
       await new Promise(r => setTimeout(r, 800))
       setPortfolioData(MOCK_DATA)
     } finally {
@@ -177,7 +231,9 @@ function MainApp({ user }) {
             </span>
           </div>
 
-          {error && <span style={{ fontSize: '0.7rem', color: '#f59e0b' }}>⚠ {error}</span>}
+          {error && (
+            <span style={{ fontSize: '0.7rem', color: '#f59e0b' }}>⚠ {error}</span>
+          )}
 
           {portfolioData && (
             <button onClick={() => setShowEdit(true)} style={{
@@ -206,34 +262,50 @@ function MainApp({ user }) {
   )
 }
 
+// ── ROOT ─────────────────────────────────────────────────────
 export default function App() {
-  const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('r2p_user')) } catch { return null }
-  })
+  const [user, setUser] = useState(getStoredUser)
+  const [token, setToken] = useState(getStoredToken)
+  const [usesLeft, setUsesLeft] = useState(getStoredUsesLeft)
 
   const handleLogout = () => {
     localStorage.removeItem('r2p_user')
+    localStorage.removeItem('r2p_token')
+    localStorage.removeItem('r2p_uses_left')
     setUser(null)
+    setToken(null)
+    setUsesLeft(5)
   }
 
-  // Listen for login from pages
+  // Sync auth state when login/signup pages set localStorage
   useEffect(() => {
-    const check = () => {
-      try { setUser(JSON.parse(localStorage.getItem('r2p_user'))) } catch {}
+    const sync = () => {
+      const u = getStoredUser()
+      const t = getStoredToken()
+      const ul = getStoredUsesLeft()
+      setUser(u)
+      setToken(t)
+      setUsesLeft(ul)
     }
-    window.addEventListener('storage', check)
-    // Poll for same-tab login
-    const id = setInterval(check, 500)
-    return () => { window.removeEventListener('storage', check); clearInterval(id) }
+    window.addEventListener('storage', sync)
+    const id = setInterval(sync, 400)
+    return () => { window.removeEventListener('storage', sync); clearInterval(id) }
   }, [])
 
   return (
     <BrowserRouter>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: '#100a0d' }}>
-        <Navbar user={user} onLogout={handleLogout} />
+        <Navbar user={user} usesLeft={usesLeft} onLogout={handleLogout} />
         <Routes>
-          <Route path="/" element={<MainApp user={user} />} />
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={
+            <MainApp
+              user={user}
+              token={token}
+              usesLeft={usesLeft}
+              setUsesLeft={setUsesLeft}
+            />
+          } />
+          <Route path="/login"  element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
         </Routes>
       </div>
