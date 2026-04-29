@@ -26,14 +26,10 @@ const MOCK_DATA = {
 async function callGemini(resumeText) {
   const apiKey = process.env.GEMINI_API_KEY
 
-  // ── Check 1: API key exists
   if (!apiKey || apiKey === 'AIzaSy_YOUR_KEY_HERE') {
-    console.warn('⚠️  GEMINI_API_KEY is missing or placeholder — using mock data')
+    console.warn('⚠️  GEMINI_API_KEY missing — using mock data')
     return MOCK_DATA
   }
-
-  console.log('🔄 Calling Gemini API...')
-  console.log('📄 Resume text length:', resumeText.length, 'characters')
 
   const prompt = `You are a resume parser. Extract all information from the resume below and return ONLY a valid JSON object. No markdown, no explanation, no code blocks — just raw JSON.
 
@@ -77,17 +73,54 @@ The JSON must have exactly these fields:
 Resume text:
 ${resumeText}`
 
-  // Try multiple Gemini models in order
-  const models = [
-    'gemini-1.5-flash',
-    'gemini-1.5-flash-latest',
-    'gemini-pro',
-    'gemini-1.0-pro'
-  ]
+  // ── Step 1: Get available models from YOUR API key
+  console.log('🔍 Fetching available Gemini models...')
+  let modelsToTry = []
 
-  for (const model of models) {
+  try {
+    const modelsRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+    )
+    const modelsData = await modelsRes.json()
+
+    if (modelsData.models) {
+      // Filter only text generation models
+      modelsToTry = modelsData.models
+        .map(m => m.name.replace('models/', ''))
+        .filter(name =>
+          name.includes('gemini') &&
+          !name.includes('embedding') &&
+          !name.includes('vision') &&
+          !name.includes('aqa')
+        )
+      console.log('✅ Available models:', modelsToTry)
+    } else {
+      console.warn('⚠️  Could not fetch models:', JSON.stringify(modelsData.error))
+    }
+  } catch (err) {
+    console.warn('⚠️  Could not fetch model list:', err.message)
+  }
+
+  // ── Step 2: Fallback list if model fetch failed
+  if (modelsToTry.length === 0) {
+    modelsToTry = [
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-lite',
+      'gemini-1.5-flash-8b',
+      'gemini-1.5-flash-8b-latest',
+      'gemini-1.5-flash-002',
+      'gemini-1.5-flash-001',
+      'gemini-1.5-pro',
+      'gemini-1.5-pro-latest',
+      'gemini-1.5-pro-002',
+    ]
+    console.log('📋 Using fallback model list')
+  }
+
+  // ── Step 3: Try each model until one works
+  for (const model of modelsToTry) {
     try {
-      console.log(`🤖 Trying model: ${model}`)
+      console.log(`🤖 Trying: ${model}`)
 
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -96,68 +129,67 @@ ${resumeText}`
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 2048
-            }
+            generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
           })
         }
       )
 
       const data = await response.json()
 
-      // ── Check 2: API key invalid
-      if (data.error?.code === 400 && data.error?.message?.includes('API_KEY')) {
-        console.error('❌ Invalid Gemini API key — check your .env file')
+      // Invalid API key
+      if (data.error?.status === 'INVALID_ARGUMENT' && data.error?.message?.includes('API key')) {
+        console.error('❌ Invalid API key — check your .env GEMINI_API_KEY')
         return MOCK_DATA
       }
 
-      // ── Check 3: Model not found — try next
-      if (data.error?.code === 404 || data.error?.status === 'NOT_FOUND') {
-        console.warn(`⚠️  Model ${model} not found, trying next...`)
+      // Model not found or not supported — try next
+      if (data.error?.status === 'NOT_FOUND' || data.error?.code === 404) {
+        console.warn(`⚠️  ${model} not available, trying next...`)
         continue
       }
 
-      // ── Check 4: Any other API error
-      if (!response.ok || data.error) {
-        console.error(`❌ Gemini error for model ${model}:`, JSON.stringify(data.error))
+      // Model not supported for this method
+      if (data.error?.status === 'INVALID_ARGUMENT') {
+        console.warn(`⚠️  ${model} invalid argument, trying next...`)
         continue
       }
 
-      // ── Check 5: Empty response
+      // Any other error — try next
+      if (data.error) {
+        console.warn(`⚠️  ${model} error: ${data.error.message}, trying next...`)
+        continue
+      }
+
+      // Empty response
       const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text
       if (!rawText) {
-        console.error('❌ Gemini returned empty response')
+        console.warn(`⚠️  ${model} returned empty response`)
         continue
       }
 
-      console.log('📝 Raw Gemini response (first 200 chars):', rawText.substring(0, 200))
-
-      // Strip markdown code fences
+      // Clean and parse JSON
       const cleaned = rawText
-        .replace(/```json\n?/g, '')
+        .replace(/```json\n?/gi, '')
         .replace(/```\n?/g, '')
         .trim()
 
-      // ── Check 6: Parse JSON
       try {
         const parsed = JSON.parse(cleaned)
-        console.log('✅ Gemini successfully parsed resume for:', parsed.name)
+        console.log(`✅ Success with model: ${model} — parsed resume for: ${parsed.name}`)
         return parsed
       } catch (parseErr) {
-        console.error('❌ Failed to parse Gemini JSON response:', parseErr.message)
-        console.error('Raw text was:', cleaned.substring(0, 300))
+        console.warn(`⚠️  ${model} JSON parse failed:`, parseErr.message)
+        console.warn('Raw output:', cleaned.substring(0, 200))
         continue
       }
 
     } catch (err) {
-      console.error(`❌ Network error for model ${model}:`, err.message)
+      console.warn(`⚠️  ${model} network error:`, err.message)
       continue
     }
   }
 
-  // All models failed
-  console.error('❌ All Gemini models failed — falling back to mock data')
+  console.error('❌ All models failed — using mock data')
   return MOCK_DATA
 }
 
