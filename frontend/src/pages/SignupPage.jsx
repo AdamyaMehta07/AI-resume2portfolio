@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { User, Mail, Lock, Eye, EyeOff, Sparkles } from 'lucide-react'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+
 export default function SignupPage() {
   const navigate = useNavigate()
   const [form, setForm] = useState({ name: '', email: '', password: '' })
@@ -12,14 +14,37 @@ export default function SignupPage() {
   const handleSubmit = async () => {
     setError('')
     if (!form.name.trim()) return setError('Name is required.')
-    if (!form.email.includes('@')) return setError('Enter a valid email.')
+    if (!form.email.includes('@')) return setError('Enter a valid email address.')
     if (form.password.length < 6) return setError('Password must be at least 6 characters.')
     setLoading(true)
-    // TODO: replace with real API call → await fetch('/api/auth/signup', ...)
-    await new Promise(r => setTimeout(r, 900))
-    localStorage.setItem('r2p_user', JSON.stringify({ email: form.email, name: form.name }))
-    setLoading(false)
-    navigate('/')
+
+    try {
+      const res = await fetch(`${API_URL}/api/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: form.name, email: form.email, password: form.password })
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Signup failed. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      // Save token + user to localStorage
+      localStorage.setItem('r2p_token', data.token)
+      localStorage.setItem('r2p_user', JSON.stringify(data.user))
+      localStorage.setItem('r2p_uses_left', data.usesLeft)
+
+      navigate('/')
+
+    } catch (err) {
+      setError('Cannot connect to server. Make sure backend is running.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -51,15 +76,13 @@ export default function SignupPage() {
             <div style={{
               width: '28px', height: '28px',
               background: 'linear-gradient(135deg, #7a1f35, #fb7185)',
-              borderRadius: '7px', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', fontSize: '13px'
+              borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px'
             }}>✦</div>
             <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: '800', fontSize: '1rem', color: '#fff0f3' }}>
               Resume<span style={{ color: '#fb7185' }}>2</span>Portfolio
             </span>
           </Link>
 
-          {/* Free tier pill */}
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '6px',
             padding: '4px 12px', marginBottom: '16px',
@@ -72,8 +95,7 @@ export default function SignupPage() {
 
           <h1 style={{
             fontFamily: 'Syne, sans-serif', fontWeight: '800',
-            fontSize: '1.8rem', color: '#fff0f3',
-            letterSpacing: '-0.02em', marginBottom: '6px'
+            fontSize: '1.8rem', color: '#fff0f3', letterSpacing: '-0.02em', marginBottom: '6px'
           }}>Create account</h1>
           <p style={{ fontSize: '0.85rem', color: '#7a4a56', marginBottom: '26px' }}>
             Start generating beautiful portfolios today
@@ -117,7 +139,7 @@ export default function SignupPage() {
             </button>
           </div>
 
-          {/* What you get */}
+          {/* Perks list */}
           <div style={{
             marginTop: '20px', padding: '14px',
             background: 'rgba(251,113,133,0.04)',
