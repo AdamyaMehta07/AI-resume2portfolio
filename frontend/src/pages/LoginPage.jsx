@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+
 export default function LoginPage() {
   const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', password: '' })
@@ -13,11 +15,34 @@ export default function LoginPage() {
     setError('')
     if (!form.email || !form.password) return setError('Please fill in all fields.')
     setLoading(true)
-    // TODO: replace with real API call → await fetch('/api/auth/login', ...)
-    await new Promise(r => setTimeout(r, 800))
-    localStorage.setItem('r2p_user', JSON.stringify({ email: form.email, name: form.email.split('@')[0] }))
-    setLoading(false)
-    navigate('/')
+
+    try {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email, password: form.password })
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Login failed. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      // Save token + user to localStorage
+      localStorage.setItem('r2p_token', data.token)
+      localStorage.setItem('r2p_user', JSON.stringify(data.user))
+      localStorage.setItem('r2p_uses_left', data.usesLeft)
+
+      navigate('/')
+
+    } catch (err) {
+      setError('Cannot connect to server. Make sure backend is running.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -26,7 +51,6 @@ export default function LoginPage() {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontFamily: 'DM Sans, sans-serif', padding: '20px'
     }}>
-      {/* Background orb */}
       <div style={{
         position: 'fixed', top: '10%', left: '50%', transform: 'translateX(-50%)',
         width: '500px', height: '500px', borderRadius: '50%',
@@ -42,7 +66,6 @@ export default function LoginPage() {
         boxShadow: '0 32px 80px rgba(122,31,53,0.3)',
         overflow: 'hidden', position: 'relative'
       }}>
-        {/* Top accent line */}
         <div style={{ height: '3px', background: 'linear-gradient(90deg, #7a1f35, #fb7185, #7a1f35)' }} />
 
         <div style={{ padding: '36px 32px 32px' }}>
@@ -51,8 +74,7 @@ export default function LoginPage() {
             <div style={{
               width: '28px', height: '28px',
               background: 'linear-gradient(135deg, #7a1f35, #fb7185)',
-              borderRadius: '7px', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', fontSize: '13px'
+              borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px'
             }}>✦</div>
             <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: '800', fontSize: '1rem', color: '#fff0f3' }}>
               Resume<span style={{ color: '#fb7185' }}>2</span>Portfolio
@@ -61,17 +83,16 @@ export default function LoginPage() {
 
           <h1 style={{
             fontFamily: 'Syne, sans-serif', fontWeight: '800',
-            fontSize: '1.8rem', color: '#fff0f3',
-            letterSpacing: '-0.02em', marginBottom: '6px'
+            fontSize: '1.8rem', color: '#fff0f3', letterSpacing: '-0.02em', marginBottom: '6px'
           }}>Welcome back</h1>
           <p style={{ fontSize: '0.85rem', color: '#7a4a56', marginBottom: '28px' }}>
-            Sign in to your account to continue
+            Sign in to continue generating portfolios
           </p>
 
-          {/* Fields */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <Field icon={<Mail size={15} />} placeholder="Email address" type="email"
-              value={form.email} onChange={v => setForm(p => ({ ...p, email: v }))} />
+              value={form.email} onChange={v => setForm(p => ({ ...p, email: v }))}
+              onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
 
             <div style={{ position: 'relative' }}>
               <Field icon={<Lock size={15} />} placeholder="Password"
@@ -93,13 +114,12 @@ export default function LoginPage() {
               background: loading ? 'rgba(122,31,53,0.4)' : 'linear-gradient(135deg, #7a1f35, #fb7185)',
               border: 'none', borderRadius: '10px', color: 'white',
               fontWeight: '700', fontSize: '0.92rem', cursor: loading ? 'not-allowed' : 'pointer',
-              fontFamily: 'Syne, sans-serif', marginTop: '4px', transition: 'opacity 0.2s'
+              fontFamily: 'Syne, sans-serif', marginTop: '4px'
             }}>
               {loading ? 'Signing in...' : '✦ Sign In'}
             </button>
           </div>
 
-          {/* Free tier note */}
           <div style={{
             marginTop: '20px', padding: '12px 14px',
             background: 'rgba(251,113,133,0.05)',
@@ -134,8 +154,7 @@ function Field({ icon, placeholder, type = 'text', value, onChange, onKeyDown })
         type={type} placeholder={placeholder} value={value}
         onChange={e => onChange(e.target.value)}
         onKeyDown={onKeyDown}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
+        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         style={{
           width: '100%', padding: '11px 14px 11px 40px',
           background: 'rgba(251,113,133,0.05)',
