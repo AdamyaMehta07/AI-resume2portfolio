@@ -71,7 +71,6 @@ export default function PreviewPanel({ data, template }) {
         height: '100%', display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', gap: '20px'
       }}>
-        {/* Decorative rose circle */}
         <div style={{ position: 'relative', width: '90px', height: '90px' }}>
           <div style={{
             width: '90px', height: '90px', borderRadius: '50%',
@@ -115,6 +114,7 @@ export default function PreviewPanel({ data, template }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+
       {/* Browser toolbar */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -132,6 +132,7 @@ export default function PreviewPanel({ data, template }) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {/* Viewport toggle */}
           <div style={{
             display: 'flex', background: 'var(--bg-surface)',
             borderRadius: '6px', padding: '2px', border: '1px solid var(--border)'
@@ -151,6 +152,7 @@ export default function PreviewPanel({ data, template }) {
             ))}
           </div>
 
+          {/* Export button */}
           <button onClick={handleExport} style={{
             padding: '6px 14px', borderRadius: '6px',
             border: '1px solid var(--accent-border)',
@@ -159,32 +161,38 @@ export default function PreviewPanel({ data, template }) {
             display: 'flex', alignItems: 'center', gap: '5px',
             fontFamily: 'DM Sans, sans-serif', transition: 'all 0.15s'
           }}
-          onMouseOver={e => e.currentTarget.style.background = 'rgba(251,113,133,0.25)'}
-          onMouseOut={e => e.currentTarget.style.background = 'var(--accent-dim)'}
+            onMouseOver={e => e.currentTarget.style.background = 'rgba(251,113,133,0.25)'}
+            onMouseOut={e => e.currentTarget.style.background = 'var(--accent-dim)'}
           >
             <Download size={12} /> Export HTML
           </button>
         </div>
       </div>
 
-      {/* Preview area */}
-      <div style={{
-        flex: 1, overflow: 'auto',
-        padding: viewport === 'mobile' ? '20px' : '0',
-        display: 'flex',
-        justifyContent: viewport === 'mobile' ? 'center' : 'flex-start',
-        background: viewport === 'mobile' ? 'rgba(10,5,8,0.6)' : 'transparent'
-      }}>
+      {/* ── SCROLLABLE PREVIEW AREA ── */}
+      <div
+        className="preview-scroll"
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          padding: viewport === 'mobile' ? '20px' : '0',
+          display: 'flex',
+          justifyContent: viewport === 'mobile' ? 'center' : 'flex-start',
+          background: viewport === 'mobile' ? 'rgba(10,5,8,0.6)' : 'transparent'
+        }}
+      >
         <div style={{
           width: viewport === 'mobile' ? '390px' : '100%',
           flexShrink: 0,
           boxShadow: viewport === 'mobile' ? '0 0 60px rgba(251,113,133,0.1)' : 'none',
           borderRadius: viewport === 'mobile' ? '16px' : '0',
-          overflow: 'hidden'
+          overflow: viewport === 'mobile' ? 'hidden' : 'visible'
         }}>
           <TemplateComponent data={data} />
         </div>
       </div>
+
     </div>
   )
 }
