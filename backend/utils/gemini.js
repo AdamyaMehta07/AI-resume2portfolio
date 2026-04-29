@@ -1,7 +1,5 @@
 const fetch = require('node-fetch')
 
-// ── MOCK DATA ─────────────────────────────────────────────────
-// Used when Gemini API key is missing or API call fails
 const MOCK_DATA = {
   name: 'Alex Rivera',
   title: 'Full Stack Developer & UI Engineer',
@@ -10,58 +8,34 @@ const MOCK_DATA = {
   location: 'San Francisco, CA',
   github: 'github.com/alexrivera',
   linkedin: 'linkedin.com/in/alexrivera',
-  summary: 'Passionate full-stack developer with 5+ years of experience building scalable web applications. Love crafting elegant solutions to complex problems with a focus on performance and user experience.',
-  skills: ['React', 'Node.js', 'TypeScript', 'Python', 'PostgreSQL', 'MongoDB', 'Docker', 'AWS', 'GraphQL', 'Next.js'],
+  summary: 'Passionate full-stack developer with 5+ years of experience building scalable web applications.',
+  skills: ['React', 'Node.js', 'TypeScript', 'Python', 'PostgreSQL', 'MongoDB', 'Docker', 'AWS'],
   projects: [
-    {
-      name: 'CloudSync Dashboard',
-      description: 'Real-time cloud storage dashboard with drag-and-drop file operations and team collaboration. Reduced file sync time by 60%.',
-      tech: ['React', 'Node.js', 'WebSocket', 'AWS S3'],
-      link: 'https://github.com/alexrivera/cloudsync'
-    },
-    {
-      name: 'DevPulse',
-      description: 'Developer productivity tracker integrating GitHub, Jira, and Slack. Used by 500+ developers across 30 companies.',
-      tech: ['Next.js', 'PostgreSQL', 'OAuth', 'REST API'],
-      link: 'https://github.com/alexrivera/devpulse'
-    }
+    { name: 'CloudSync Dashboard', description: 'Real-time cloud storage dashboard. Reduced sync time by 60%.', tech: ['React', 'Node.js', 'AWS S3'], link: '' },
+    { name: 'DevPulse', description: 'Developer productivity tracker used by 500+ developers.', tech: ['Next.js', 'PostgreSQL'], link: '' }
   ],
   experience: [
-    {
-      company: 'Stripe',
-      role: 'Senior Software Engineer',
-      period: '2021 – Present',
-      description: 'Led development of payment infrastructure serving 10M+ transactions/day. Architected microservices migration reducing latency by 40%.'
-    },
-    {
-      company: 'Airbnb',
-      role: 'Software Engineer',
-      period: '2019 – 2021',
-      description: 'Built host dashboard features used by 4M+ hosts globally. Improved search ranking algorithm increasing bookings by 15%.'
-    }
+    { company: 'Stripe', role: 'Senior Software Engineer', period: '2021 – Present', description: 'Led payment infrastructure serving 10M+ transactions/day.' },
+    { company: 'Airbnb', role: 'Software Engineer', period: '2019 – 2021', description: 'Built host dashboard used by 4M+ hosts globally.' }
   ],
   education: [
-    {
-      institution: 'UC Berkeley',
-      degree: 'B.S. Computer Science',
-      period: '2014 – 2018',
-      details: 'GPA: 3.8 | Dean\'s List | ACM Club President'
-    }
+    { institution: 'UC Berkeley', degree: 'B.S. Computer Science', period: '2014 – 2018', details: "GPA: 3.8 | Dean's List" }
   ]
 }
 
-// ── GEMINI API CALL ───────────────────────────────────────────
 async function callGemini(resumeText) {
   const apiKey = process.env.GEMINI_API_KEY
 
-  if (!apiKey) {
-    console.warn('⚠️  No GEMINI_API_KEY found — returning mock data')
+  // ── Check 1: API key exists
+  if (!apiKey || apiKey === 'AIzaSy_YOUR_KEY_HERE') {
+    console.warn('⚠️  GEMINI_API_KEY is missing or placeholder — using mock data')
     return MOCK_DATA
   }
 
-  const prompt = `
-You are a resume parser. Extract all information from the resume below and return ONLY a valid JSON object.
-No markdown, no explanation, no code blocks — just raw JSON.
+  console.log('🔄 Calling Gemini API...')
+  console.log('📄 Resume text length:', resumeText.length, 'characters')
+
+  const prompt = `You are a resume parser. Extract all information from the resume below and return ONLY a valid JSON object. No markdown, no explanation, no code blocks — just raw JSON.
 
 The JSON must have exactly these fields:
 {
@@ -101,45 +75,90 @@ The JSON must have exactly these fields:
 }
 
 Resume text:
-${resumeText}
-`
+${resumeText}`
 
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 2048
-          }
-        })
+  // Try multiple Gemini models in order
+  const models = [
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-latest',
+    'gemini-pro',
+    'gemini-1.0-pro'
+  ]
+
+  for (const model of models) {
+    try {
+      console.log(`🤖 Trying model: ${model}`)
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 2048
+            }
+          })
+        }
+      )
+
+      const data = await response.json()
+
+      // ── Check 2: API key invalid
+      if (data.error?.code === 400 && data.error?.message?.includes('API_KEY')) {
+        console.error('❌ Invalid Gemini API key — check your .env file')
+        return MOCK_DATA
       }
-    )
 
-    if (!response.ok) {
-      const errText = await response.text()
-      console.error('Gemini API error:', errText)
-      return MOCK_DATA
+      // ── Check 3: Model not found — try next
+      if (data.error?.code === 404 || data.error?.status === 'NOT_FOUND') {
+        console.warn(`⚠️  Model ${model} not found, trying next...`)
+        continue
+      }
+
+      // ── Check 4: Any other API error
+      if (!response.ok || data.error) {
+        console.error(`❌ Gemini error for model ${model}:`, JSON.stringify(data.error))
+        continue
+      }
+
+      // ── Check 5: Empty response
+      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text
+      if (!rawText) {
+        console.error('❌ Gemini returned empty response')
+        continue
+      }
+
+      console.log('📝 Raw Gemini response (first 200 chars):', rawText.substring(0, 200))
+
+      // Strip markdown code fences
+      const cleaned = rawText
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .trim()
+
+      // ── Check 6: Parse JSON
+      try {
+        const parsed = JSON.parse(cleaned)
+        console.log('✅ Gemini successfully parsed resume for:', parsed.name)
+        return parsed
+      } catch (parseErr) {
+        console.error('❌ Failed to parse Gemini JSON response:', parseErr.message)
+        console.error('Raw text was:', cleaned.substring(0, 300))
+        continue
+      }
+
+    } catch (err) {
+      console.error(`❌ Network error for model ${model}:`, err.message)
+      continue
     }
-
-    const data = await response.json()
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
-
-    // Strip markdown code fences if Gemini wraps response in ```json
-    const cleaned = rawText.replace(/```json|```/g, '').trim()
-    const parsed = JSON.parse(cleaned)
-
-    console.log('✅ Gemini parsed resume successfully')
-    return parsed
-
-  } catch (err) {
-    console.error('❌ Gemini error:', err.message, '— falling back to mock data')
-    return MOCK_DATA
   }
+
+  // All models failed
+  console.error('❌ All Gemini models failed — falling back to mock data')
+  return MOCK_DATA
 }
 
 module.exports = { callGemini }
