@@ -1,17 +1,17 @@
 export const MOCK_DATA = {
-  name: "Alex Rivera",
+  name: "Adamya Mehta",
   title: "Full Stack Developer & UI Engineer",
-  email: "alex.rivera@email.com",
-  phone: "+1 (555) 234-5678",
+  email: "adamyamehta79@gmail.com",
+  phone: "+91987654321",
   location: "San Francisco, CA",
-  github: "github.com/alexrivera",
-  linkedin: "linkedin.com/in/alexrivera",
+  github: "github.com/AdamyaMehta07",
+  linkedin: "linkedin.com/in/AdamyaMehta07",
   summary:
     "Passionate full-stack developer with 5+ years of experience building scalable web applications. I love crafting elegant solutions to complex problems, with a focus on performance and user experience. Open source contributor and lifelong learner.",
   skills: [
     "React", "Node.js", "TypeScript", "Python",
-    "PostgreSQL", "MongoDB", "Docker", "AWS",
-    "GraphQL", "Next.js", "Redis", "Git"
+    "SQL", "MongoDB", "Java", "Express.js",
+    "Javascript", "Next.js", "Git"
   ],
   projects: [
     {

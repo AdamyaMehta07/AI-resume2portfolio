@@ -83,7 +83,7 @@ ${resumeText}`
 
   for (const model of models) {
     try {
-      console.log(`🤖 Trying Groq model: ${model}`)
+      console.log(`Trying Groq model: ${model}`)
 
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
@@ -112,36 +112,36 @@ ${resumeText}`
 
       // Invalid API key
       if (data.error?.code === 'invalid_api_key') {
-        console.error('❌ Invalid Groq API key — check your .env file')
+        console.error('Invalid Groq API key — check your .env file')
         return MOCK_DATA
       }
 
       // Rate limited — try next model
       if (data.error?.code === 'rate_limit_exceeded') {
-        console.warn(`⚠️  Rate limited on ${model} — trying next model`)
+        console.warn(`Rate limited on ${model} — trying next model`)
         continue
       }
 
       // Model not found — try next
       if (data.error?.code === 'model_not_found') {
-        console.warn(`⚠️  Model ${model} not found — trying next`)
+        console.warn(`Model ${model} not found — trying next`)
         continue
       }
 
       // Any other error
       if (data.error) {
-        console.warn(`⚠️  Groq error on ${model}: ${data.error.message}`)
+        console.warn(`Groq error on ${model}: ${data.error.message}`)
         continue
       }
 
       // Get response text
       const rawText = data.choices?.[0]?.message?.content
       if (!rawText) {
-        console.warn(`⚠️  ${model} returned empty response`)
+        console.warn(`${model} returned empty response`)
         continue
       }
 
-      console.log('📝 Raw response (first 200 chars):', rawText.substring(0, 200))
+      console.log('Raw response (first 200 chars):', rawText.substring(0, 200))
 
       // Clean markdown fences if present
       const cleaned = rawText
@@ -152,20 +152,20 @@ ${resumeText}`
       // Parse JSON
       try {
         const parsed = JSON.parse(cleaned)
-        console.log(`✅ SUCCESS — Groq model: ${model} — parsed for: ${parsed.name}`)
+        console.log(`SUCCESS — Groq model: ${model} — parsed for: ${parsed.name}`)
         return parsed
       } catch (parseErr) {
-        console.warn(`⚠️  JSON parse failed for ${model}:`, cleaned.substring(0, 200))
+        console.warn(`JSON parse failed for ${model}:`, cleaned.substring(0, 200))
         continue
       }
 
     } catch (networkErr) {
-      console.warn(`⚠️  Network error on ${model}:`, networkErr.message)
+      console.warn(`Network error on ${model}:`, networkErr.message)
       continue
     }
   }
 
-  console.error('❌ All Groq models failed — using mock data')
+  console.error('All Groq models failed — using mock data')
   return MOCK_DATA
 }
 

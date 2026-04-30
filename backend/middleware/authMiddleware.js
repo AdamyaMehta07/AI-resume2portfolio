@@ -33,7 +33,7 @@ async function protect(req, res, next) {
 }
 
 // ── RATE LIMIT ───────────────────────────────────────────────
-// Allows max 5 Gemini API calls per user per day
+
 async function rateLimit(req, res, next) {
   try {
     const today = getTodayKey()

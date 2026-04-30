@@ -30,7 +30,7 @@ router.post('/parse-resume', protect, rateLimit, upload.single('resume'), async 
       return res.status(400).json({ error: 'No file uploaded.' })
     }
 
-    console.log('📁 File received:', req.file.originalname, '| Type:', req.file.mimetype, '| Size:', req.file.size, 'bytes')
+    console.log('File received:', req.file.originalname, '| Type:', req.file.mimetype, '| Size:', req.file.size, 'bytes')
 
     let resumeText = ''
 
@@ -40,15 +40,15 @@ router.post('/parse-resume', protect, rateLimit, upload.single('resume'), async 
         const pdfParse = require('pdf-parse')
         const pdfData = await pdfParse(req.file.buffer)
         resumeText = pdfData.text
-        console.log('📄 PDF text extracted, length:', resumeText.length, 'chars')
+        console.log('PDF text extracted, length:', resumeText.length, 'chars')
       } catch (pdfErr) {
-        console.error('❌ PDF parse error:', pdfErr.message)
+        console.error('PDF parse error:', pdfErr.message)
         return res.status(400).json({ error: 'Could not read this PDF. Try copy-pasting your resume text instead.' })
       }
     } else {
       // Plain text file
       resumeText = req.file.buffer.toString('utf-8')
-      console.log('📄 Text file read, length:', resumeText.length, 'chars')
+      console.log('Text file read, length:', resumeText.length, 'chars')
     }
 
     if (!resumeText || resumeText.trim().length < 30) {
@@ -62,11 +62,11 @@ router.post('/parse-resume', protect, rateLimit, upload.single('resume'), async 
     await incrementUsage(req.user.id)
     const usesLeft = await getUsesLeft(req.user.id)
 
-    console.log('✅ Portfolio generated for user:', req.user.email, '| Uses left:', usesLeft)
+    console.log('Portfolio generated for user:', req.user.email, '| Uses left:', usesLeft)
     res.json({ ...portfolioData, usesLeft, limit: DAILY_LIMIT })
 
   } catch (err) {
-    console.error('❌ Parse resume error:', err)
+    console.error('Parse resume error:', err)
     res.status(500).json({ error: 'Failed to process resume. Please try again.' })
   }
 })
@@ -84,18 +84,18 @@ router.post('/parse-text', protect, rateLimit, async (req, res) => {
       return res.status(400).json({ error: 'Text is too short. Please paste your full resume.' })
     }
 
-    console.log('📝 Text received, length:', text.length, 'chars')
+    console.log('Text received, length:', text.length, 'chars')
 
     const portfolioData = await callGemini(text)
 
     await incrementUsage(req.user.id)
     const usesLeft = await getUsesLeft(req.user.id)
 
-    console.log('✅ Portfolio generated for user:', req.user.email, '| Uses left:', usesLeft)
+    console.log('Portfolio generated for user:', req.user.email, '| Uses left:', usesLeft)
     res.json({ ...portfolioData, usesLeft, limit: DAILY_LIMIT })
 
   } catch (err) {
-    console.error('❌ Parse text error:', err)
+    console.error('Parse text error:', err)
     res.status(500).json({ error: 'Failed to process resume text. Please try again.' })
   }
 })
