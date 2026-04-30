@@ -18,10 +18,11 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Password is required'],
     minlength: 6
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+  // ── Password reset fields ──
+  resetToken:        { type: String, default: null },
+  resetTokenExpiry:  { type: Date,   default: null },
+
+  createdAt: { type: Date, default: Date.now }
 })
 
 module.exports = mongoose.model('User', userSchema)
