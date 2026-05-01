@@ -3,10 +3,12 @@ import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router-do
 import UploadPanel from './components/UploadPanel'
 import PreviewPanel from './components/PreviewPanel'
 import EditModal from './components/EditModal'
-import LoginPage            from './pages/LoginPage'
-import ForgotPasswordPage   from './pages/ForgotPasswordPage'
-import ResetPasswordPage    from './pages/ResetPasswordPage'
+import LoginPage from './pages/LoginPage'
+import SignupPage from './pages/SignupPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import { MOCK_DATA } from './mockData'
+
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 

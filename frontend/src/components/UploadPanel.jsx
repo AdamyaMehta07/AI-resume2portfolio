@@ -75,15 +75,16 @@ export default function UploadPanel({ onGenerate, isLoading, hasData, onEdit, po
           border: '1px solid var(--border)'
         }}>
           {['upload', 'paste'].map(m => (
-            <button key={m} onClick={() => setMode(m)} style={{
-              flex: 1, padding: '7px 0', borderRadius: '6px', border: 'none',
-              cursor: 'pointer', fontSize: '0.8rem', fontWeight: '500',
-              background: mode === m ? 'var(--accent-dim)' : 'transparent',
-              color: mode === m ? 'var(--accent)' : 'var(--text-muted)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
-              transition: 'all 0.15s', fontFamily: 'DM Sans, sans-serif',
-              border: mode === m ? '1px solid var(--accent-border)' : '1px solid transparent'
-            }}>
+            
+              <button key={m} onClick={() => setMode(m)} style={{
+                flex: 1, padding: '7px 0', borderRadius: '6px',
+                cursor: 'pointer', fontSize: '0.8rem', fontWeight: '500',
+                background: mode === m ? 'var(--accent-dim)' : 'transparent',
+                color: mode === m ? 'var(--accent)' : 'var(--text-muted)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
+                transition: 'all 0.15s', fontFamily: 'DM Sans, sans-serif',
+                border: mode === m ? '1px solid var(--accent-border)' : '1px solid transparent'
+              }}>
               {m === 'upload' ? <Upload size={12} /> : <FileText size={12} />}
               {m === 'upload' ? 'Upload PDF' : 'Paste Text'}
             </button>
