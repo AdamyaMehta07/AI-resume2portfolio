@@ -187,7 +187,7 @@ export default function PreviewPanel({ data, template }) {
           flexShrink: 0,
           boxShadow: viewport === 'mobile' ? '0 0 60px rgba(251,113,133,0.1)' : 'none',
           borderRadius: viewport === 'mobile' ? '16px' : '0',
-          overflow: viewport === 'mobile' ? 'hidden' : 'visible'
+          overflow: 'visible'
         }}>
           <TemplateComponent data={data} />
         </div>
