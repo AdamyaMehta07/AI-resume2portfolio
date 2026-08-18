@@ -27,8 +27,10 @@ async function callGroq(resumeText) {
   const apiKey = process.env.GROQ_API_KEY
 
   if (!apiKey || apiKey === 'gsk_your_key_here') {
-    console.warn('⚠️  GROQ_API_KEY missing — using mock data')
-    return MOCK_DATA
+    console.error('⚠️  GROQ_API_KEY missing or placeholder — set it in your environment (Render dashboard for prod, backend/.env for local)')
+    const err = new Error('GROQ_API_KEY is not configured on the server.')
+    err.isAiFailure = true
+    throw err
   }
 
   const prompt = `You are a resume parser. Extract all information from the resume below and return ONLY a valid JSON object. No markdown, no explanation, no code blocks — just raw JSON.
@@ -73,12 +75,12 @@ The JSON must have exactly these fields:
 Resume text:
 ${resumeText}`
 
-  // Try models in order — all free on Groq
+  // Try models in order — all free on Groq (updated Aug 2026 — old llama-3.1-8b-instant,
+  // llama3-8b-8192, mixtral-8x7b-32768, and gemma2-9b-it are all decommissioned)
   const models = [
-    'llama-3.1-8b-instant',
-    'llama3-8b-8192',
-    'mixtral-8x7b-32768',
-    'gemma2-9b-it',
+    'openai/gpt-oss-20b',
+    'openai/gpt-oss-120b',
+    'qwen/qwen3.6-27b',
   ]
 
   for (const model of models) {
@@ -112,8 +114,10 @@ ${resumeText}`
 
       // Invalid API key
       if (data.error?.code === 'invalid_api_key') {
-        console.error('Invalid Groq API key — check your .env file')
-        return MOCK_DATA
+        console.error('Invalid Groq API key — check your .env file / Render env vars')
+        const err = new Error('The configured Groq API key is invalid.')
+        err.isAiFailure = true
+        throw err
       }
 
       // Rate limited — try next model
@@ -160,13 +164,16 @@ ${resumeText}`
       }
 
     } catch (networkErr) {
+      if (networkErr.isAiFailure) throw networkErr // don't swallow deliberate failures (e.g. invalid API key)
       console.warn(`Network error on ${model}:`, networkErr.message)
       continue
     }
   }
 
-  console.error('All Groq models failed — using mock data')
-  return MOCK_DATA
+  console.error('All Groq models failed')
+  const err = new Error('AI parsing failed — all Groq models were unavailable, rate-limited, or returned invalid data.')
+  err.isAiFailure = true
+  throw err
 }
 
 // Keep the export name same so no other files need to change

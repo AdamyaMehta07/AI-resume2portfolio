@@ -67,6 +67,9 @@ router.post('/parse-resume', protect, rateLimit, upload.single('resume'), async 
 
   } catch (err) {
     console.error('Parse resume error:', err)
+    if (err.isAiFailure) {
+      return res.status(502).json({ error: err.message })
+    }
     res.status(500).json({ error: 'Failed to process resume. Please try again.' })
   }
 })
@@ -96,6 +99,9 @@ router.post('/parse-text', protect, rateLimit, async (req, res) => {
 
   } catch (err) {
     console.error('Parse text error:', err)
+    if (err.isAiFailure) {
+      return res.status(502).json({ error: err.message })
+    }
     res.status(500).json({ error: 'Failed to process resume text. Please try again.' })
   }
 })
