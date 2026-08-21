@@ -249,7 +249,7 @@ function MainApp({ user, token, usesLeft, setUsesLeft }) {
         </div>
 
         <div style={{ flex: 1, overflow: 'hidden' }}>
-          <PreviewPanel data={portfolioData} template={template} />
+          <PreviewPanel data={portfolioData} template={template} token={token} />
         </div>
       </div>
 

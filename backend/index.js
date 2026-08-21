@@ -3,12 +3,13 @@ const cors = require('cors')
 const mongoose = require('mongoose')
 require('dotenv').config()
 
-const authRoutes  = require('./routes/auth')
-const parseRoutes = require('./routes/parse')
+const authRoutes   = require('./routes/auth')
+const parseRoutes  = require('./routes/parse')
+const deployRoutes = require('./routes/deploy')
 
 const app = express()
 
-// ── CORS — allow both local and production ──────────────────
+// CORS  allow both local and production 
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
@@ -28,11 +29,12 @@ app.use(cors({
 
 app.use(express.json())
 
-// ── ROUTES ───────────────────────────────────────────────────
+// ROUTES 
 app.use('/api/auth', authRoutes)
 app.use('/api',      parseRoutes)
+app.use('/api',      deployRoutes)
 
-// ── HEALTH CHECK ─────────────────────────────────────────────
+// ── HEALTH CHECK 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Resume2Portfolio API is running ✅' })
 })

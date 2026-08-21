@@ -1,7 +1,9 @@
 import React, { useState } from 'react'
-import { Download, Monitor, Smartphone } from 'lucide-react'
+import { Download, Monitor, Smartphone, Rocket, Loader2, Copy, Check, ExternalLink } from 'lucide-react'
 import MinimalTemplate from './templates/MinimalTemplate'
 import ModernTemplate from './templates/ModernTemplate'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
 function generateHTML(data, template) {
   const isDark = template === 'modern'
@@ -50,8 +52,12 @@ Made with Resume2Portfolio · Rose Studio Theme
 </body></html>`
 }
 
-export default function PreviewPanel({ data, template }) {
+export default function PreviewPanel({ data, template, token }) {
   const [viewport, setViewport] = useState('desktop')
+  const [deployState, setDeployState] = useState('idle') // idle | loading | success | error
+  const [deployUrl, setDeployUrl] = useState(null)
+  const [deployError, setDeployError] = useState(null)
+  const [copied, setCopied] = useState(false)
 
   const handleExport = () => {
     if (!data) return
@@ -63,6 +69,50 @@ export default function PreviewPanel({ data, template }) {
     a.download = `${(data.name || 'portfolio').replace(/\s+/g, '-').toLowerCase()}-portfolio.html`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleDeploy = async () => {
+    if (!data) return
+    if (!token) {
+      setDeployState('error')
+      setDeployError('Please log in to deploy your portfolio.')
+      return
+    }
+
+    setDeployState('loading')
+    setDeployError(null)
+
+    try {
+      const html = generateHTML(data, template)
+      const res = await fetch(`${API_URL}/api/deploy`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ html })
+      })
+
+      const result = await res.json()
+
+      if (!res.ok) {
+        throw new Error(result.error || 'Deploy failed')
+      }
+
+      setDeployUrl(result.url)
+      setDeployState('success')
+    } catch (err) {
+      console.error('Deploy error:', err)
+      setDeployError(err.message || 'Something went wrong while deploying.')
+      setDeployState('error')
+    }
+  }
+
+  const handleCopy = () => {
+    if (!deployUrl) return
+    navigator.clipboard.writeText(deployUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
   }
 
   if (!data) {
@@ -166,8 +216,69 @@ export default function PreviewPanel({ data, template }) {
           >
             <Download size={12} /> Export HTML
           </button>
+
+          {/* Deploy button */}
+          <button onClick={handleDeploy} disabled={deployState === 'loading'} style={{
+            padding: '6px 14px', borderRadius: '6px',
+            border: 'none',
+            background: deployState === 'loading'
+              ? 'rgba(122,31,53,0.4)'
+              : 'linear-gradient(135deg, #7a1f35 0%, #fb7185 100%)',
+            color: 'white',
+            fontSize: '0.78rem', fontWeight: '700',
+            cursor: deployState === 'loading' ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', gap: '5px',
+            fontFamily: 'Syne, sans-serif', transition: 'opacity 0.15s',
+            opacity: deployState === 'loading' ? 0.8 : 1
+          }}>
+            {deployState === 'loading'
+              ? <><Loader2 size={12} className="animate-spin" /> Deploying...</>
+              : <><Rocket size={12} /> Deploy Live</>}
+          </button>
         </div>
       </div>
+
+      {/* Deploy status banner */}
+      {deployState === 'success' && deployUrl && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: '10px', padding: '10px 16px',
+          background: 'rgba(34,197,94,0.08)', borderBottom: '1px solid rgba(34,197,94,0.2)',
+          flexShrink: 0
+        }}>
+          <span style={{ fontSize: '0.78rem', color: '#4ade80', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            ✅ Live at:
+            <a href={deployUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#4ade80', textDecoration: 'underline' }}>
+              {deployUrl}
+            </a>
+          </span>
+          <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+            <button onClick={handleCopy} style={{
+              padding: '4px 10px', borderRadius: '5px', border: '1px solid rgba(34,197,94,0.3)',
+              background: 'transparent', color: '#4ade80', fontSize: '0.72rem', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: '4px'
+            }}>
+              {copied ? <><Check size={11} /> Copied</> : <><Copy size={11} /> Copy</>}
+            </button>
+            <a href={deployUrl} target="_blank" rel="noopener noreferrer" style={{
+              padding: '4px 10px', borderRadius: '5px', border: '1px solid rgba(34,197,94,0.3)',
+              background: 'transparent', color: '#4ade80', fontSize: '0.72rem', textDecoration: 'none',
+              display: 'flex', alignItems: 'center', gap: '4px'
+            }}>
+              <ExternalLink size={11} /> Visit
+            </a>
+          </div>
+        </div>
+      )}
+
+      {deployState === 'error' && deployError && (
+        <div style={{
+          padding: '10px 16px', background: 'rgba(239,68,68,0.08)',
+          borderBottom: '1px solid rgba(239,68,68,0.2)', flexShrink: 0
+        }}>
+          <span style={{ fontSize: '0.78rem', color: '#f87171' }}>⚠ {deployError}</span>
+        </div>
+      )}
 
       {/* ── SCROLLABLE PREVIEW AREA ── */}
       <div
