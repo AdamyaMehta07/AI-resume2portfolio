@@ -58,13 +58,14 @@
 
 ## ✨ Features
 
--  **AI-Powered** — Uses Groq AI (LLaMA 3.1) to extract structured data from any resume
+-  **AI-Powered** — Uses Groq AI (LLaMA 3.1 / OSS models) to extract structured data from any resume
 -  **PDF & Text Upload** — Upload PDF or paste resume text directly
 -  **2 Portfolio Templates** — Modern Developer (dark) & Minimal (light editorial)
 -  **Live Preview** — See your portfolio update in real-time as you edit
 -  **Full Edit Mode** — Edit every section — name, skills, projects, experience, education
 -  **Mobile Preview** — Toggle between desktop and mobile viewport
 -  **Export HTML** — Download your portfolio as a standalone HTML file
+-  **One-Click Deploy** — Instantly publish your portfolio to a live Netlify URL, no separate hosting account needed
 -  **JWT Authentication** — Secure login/signup with bcrypt password hashing
 -  **Rate Limiting** — 5 AI generations per user per day (server-side enforcement)
 -  **Forgot Password** — Email-based password reset with 1-hour expiry tokens
@@ -93,7 +94,9 @@
 | Multer | File upload handling |
 | pdf-parse | PDF text extraction |
 | Nodemailer | Password reset emails |
-| Groq API | AI resume parsing (LLaMA 3.1) |
+| Groq API | AI resume parsing (LLaMA 3.1 / OSS models) |
+| Netlify API | One-click portfolio deployment |
+| Archiver | Zips portfolio HTML for Netlify deploy |
 
 ### Infrastructure
 | Service | Purpose |
@@ -102,6 +105,7 @@
 | Render | Backend deployment |
 | MongoDB Atlas | Cloud database |
 | Groq API | Free LLaMA AI model |
+| Netlify | User portfolio hosting (one-click deploy) |
 
 ---
 
@@ -137,14 +141,17 @@ resume2portfolio/
 ├── backend/                     ← Node.js + Express
 │   ├── routes/
 │   │   ├── auth.js              ← signup, login, forgot/reset password
-│   │   └── parse.js             ← PDF parsing + AI generation
+│   │   ├── parse.js             ← PDF parsing + AI generation
+│   │   └── deploy.js            ← one-click Netlify deployment
 │   ├── models/
 │   │   ├── User.js              ← User schema
-│   │   └── Usage.js             ← Daily usage tracking
+│   │   ├── Usage.js             ← Daily usage tracking
+│   │   └── Deployment.js        ← Live deployment tracking (per user)
 │   ├── middleware/
 │   │   └── authMiddleware.js    ← JWT protect + rate limit
 │   ├── utils/
-│   │   └── gemini.js            ← Groq AI integration
+│   │   ├── gemini.js            ← Groq AI integration
+│   │   └── netlify.js           ← Netlify deploy API integration
 │   ├── index.js                 ← Express server entry point
 │   └── package.json
 │
@@ -159,6 +166,7 @@ resume2portfolio/
 - Node.js 18+
 - MongoDB Atlas account (free)
 - Groq API key (free) — [console.groq.com](https://console.groq.com)
+- Netlify Personal Access Token (free) — [app.netlify.com](https://app.netlify.com) → User Settings → Applications
 - Gmail App Password (for password reset emails)
 
 ### 1. Clone the repo
@@ -177,6 +185,7 @@ Create `backend/.env`:
 ```env
 MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/resume2portfolio
 GROQ_API_KEY=gsk_your_groq_key_here
+NETLIFY_AUTH_TOKEN=your_netlify_personal_access_token
 JWT_SECRET=your_long_random_secret
 EMAIL_USER=yourgmail@gmail.com
 EMAIL_PASS=your_16_digit_app_password
@@ -227,6 +236,11 @@ http://localhost:5173
 | POST | `/api/parse-resume` | Upload PDF → AI parse → portfolio JSON |
 | POST | `/api/parse-text` | Paste text → AI parse → portfolio JSON |
 
+### Deploy Routes (Protected)
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/deploy` | Deploy generated portfolio HTML to a live Netlify URL |
+
 ---
 
 ##  Deploy Your Own
@@ -245,7 +259,7 @@ http://localhost:5173
 3. Set Root Directory: `backend`
 4. Build Command: `npm install`
 5. Start Command: `node index.js`
-6. Add all env variables
+6. Add all env variables (including `NETLIFY_AUTH_TOKEN` for the one-click deploy feature)
 7. Deploy!
 
 ---
@@ -259,6 +273,7 @@ http://localhost:5173
 -  CORS configured for specific origins only
 -  Environment variables never committed to git
 -  File upload size limited to 10MB
+-  Netlify deploy token kept server-side only — never exposed to the frontend
 
 ---
 
